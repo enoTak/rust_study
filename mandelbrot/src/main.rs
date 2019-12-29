@@ -8,6 +8,8 @@ use image::ColorType;
 use image::png::PNGEncoder;
 use std::fs::File;
 
+use std::io::Write;
+
 fn escape_time(c: Complex<f64>, limit: u32) -> Option<u32> {
     let mut z = Complex { re: 0.0, im: 0.0 };
     for i in 0..limit {
@@ -71,7 +73,7 @@ fn pixel_to_point(bounds: (usize, usize),
                            upper_left.im - lower_right.im);
     Complex {
         re: upper_left.re + pixel.0 as f64 * width / bounds.0 as f64,
-        im: upper_left.im - pixel.1 as f64 * width / bounds.1 as f64,
+        im: upper_left.im - pixel.1 as f64 * height / bounds.1 as f64,
     }
 }
 
@@ -121,5 +123,30 @@ fn write_image(filename: &str, pixels: &[u8], bounds: (usize, usize))
 
 
 fn main() {
-    println!("Hello, world!");
+    let args: Vec<String> = std::env::args().collect();
+
+    if args.len() != 5 {
+        writeln!(std::io::stderr(),
+                 "Usage: mandelbrot FILE PIXELS UPPERLEFT LOWERRIGHT")
+            .unwrap();
+        writeln!(std::io::stderr(),
+                 "Example: {} mandel.png 1000x750 -1.2,0.35 -1,0.20",
+                 args[0])
+            .unwrap();
+        std::process::exit(1);
+    }
+
+    let bounds = parse_pair(&args[2], 'x')
+        .expect("error parsing image dimensions");
+    let upper_left = parse_complex(&args[3])
+        .expect("error parsing upper left corner point");
+    let lower_right = parse_complex(&args[4])
+        .expect("error parsing lower right corner point");
+
+    let mut pixels = vec![0; bounds.0 * bounds.1];
+
+    render(&mut pixels, bounds, upper_left, lower_right);
+
+    write_image(&args[1], &pixels, bounds)
+        .expect("error writing PNG file");
 }
